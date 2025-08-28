@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { RubiksCube } from './components/RubiksCube';
@@ -7,11 +7,10 @@ import './App.css';
 
 function App() {
   const cubeRef = useRef();
-  const [isSolved, setIsSolved] = useState(true);
+  const [isScrambled, setIsScrambled] = useState(false);
   const [solution, setSolution] = useState(null);
-  const [isScrambling, setIsScrambling] = useState(false);
 
-  const keyMap = {
+  const keyMap = useCallback(() => ({
     'U': { axis: new THREE.Vector3(0, 1, 0), layer: 1 },
     'D': { axis: new THREE.Vector3(0, 1, 0), layer: -1 },
     'L': { axis: new THREE.Vector3(1, 0, 0), layer: -1 },
@@ -21,21 +20,22 @@ function App() {
     'M': { axis: new THREE.Vector3(1, 0, 0), layer: 0 },
     'S': { axis: new THREE.Vector3(0, 0, 1), layer: 0 },
     'E': { axis: new THREE.Vector3(0, 1, 0), layer: 0 },
-  };
+  }), []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.altKey) {
         event.preventDefault();
       }
+      const currentKeyMap = keyMap();
       const key = event.key.toUpperCase();
-      if (keyMap[key] && cubeRef.current) {
+      if (currentKeyMap[key] && cubeRef.current) {
         const isWide = event.altKey && ['U', 'D', 'L', 'R', 'F', 'B'].includes(key);
         let direction = event.shiftKey ? -1 : 1;
         if (['U', 'R', 'F', 'S'].includes(key)) {
           direction *= -1;
         }
-        const { axis, layer } = keyMap[key];
+        const { axis, layer } = currentKeyMap[key];
         cubeRef.current.rotateFace(axis, layer, direction, isWide);
       }
     };
@@ -43,11 +43,11 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [keyMap]);
 
   const handleScramble = () => {
+    setIsScrambled(true);
     setSolution(null);
-    setIsScrambling(true);
     if (!cubeRef.current) return;
     const scrambleMoves = ['U', 'D', 'L', 'R', 'F', 'B'];
     let moveCount = 0;
@@ -55,17 +55,13 @@ function App() {
     let lastMoveKey = null;
 
     const performMove = () => {
-      if (moveCount >= scrambleLength) {
-        setIsScrambling(false); 
-        setIsSolved(false); 
-        return;
-      }
+      if (moveCount >= scrambleLength) return;
       let randomMoveKey;
       do {
         randomMoveKey = scrambleMoves[Math.floor(Math.random() * scrambleMoves.length)];
       } while (randomMoveKey === lastMoveKey);
       lastMoveKey = randomMoveKey;
-      const { axis, layer } = keyMap[randomMoveKey];
+      const { axis, layer } = keyMap()[randomMoveKey];
       const direction = Math.random() < 0.5 ? 1 : -1;
       cubeRef.current.rotateFace(axis, layer, direction);
       moveCount++;
@@ -96,15 +92,6 @@ function App() {
     }
   };
 
-  const handleStateChange = (solvedState) => {
-    if (!isScrambling) {
-      setIsSolved(solvedState);
-      if(solvedState) {
-        setSolution(null); 
-      }
-    }
-  };
-
   return (
     <>
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1, color: 'white', fontFamily: 'sans-serif' }}>
@@ -117,20 +104,16 @@ function App() {
         >
           Scramble
         </button>
-        {!isSolved && (
-          <button onClick={handleGenerateSolution} style={{ marginLeft: '10px', padding: '8px', cursor: 'pointer' }}>
-            Show Solution
-          </button>
-        )}
+        <button onClick={handleGenerateSolution} style={{ marginLeft: '10px', padding: '8px', cursor: 'pointer' }}>
+          Show Solution
+        </button>
       </div>
-
       <Canvas camera={{ position: [8, 8, 8], fov: 25 }}>
         <ambientLight intensity={1.2} />
         <directionalLight position={[10, 10, 5]} intensity={1.8} />
         <OrbitControls />
-        <RubiksCube ref={cubeRef} onStateChange={handleStateChange} />
+        <RubiksCube ref={cubeRef} />
       </Canvas>
-
       {solution && (
         <div style={{
           position: 'absolute',
