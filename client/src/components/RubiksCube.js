@@ -1,3 +1,5 @@
+// client/src/components/RubiksCube.js
+
 import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { gsap } from 'gsap';
@@ -19,62 +21,14 @@ const getInitialCubeState = () => {
   return cubelets;
 };
 
-export const RubiksCube = forwardRef(({ onStateChange }, ref) => {
+export const RubiksCube = forwardRef((props, ref) => {
   const [cubelets, setCubelets] = useState(getInitialCubeState());
   const isAnimating = useRef(false);
   const groupRef = useRef();
 
-  const checkSolved = (currentCubelets) => {
-    for (const cubelet of currentCubelets) {
-      const pos = cubelet.position;
-      const rot = cubelet.rotation;
-      const expectedId = `x${Math.round(pos.x)}y${Math.round(pos.y)}z${Math.round(pos.z)}`;
-      if (cubelet.id !== expectedId) return false;
-      const isRotated = Math.abs(rot.x % (2 * Math.PI)) > 0.1 ||
-                        Math.abs(rot.y % (2 * Math.PI)) > 0.1 ||
-                        Math.abs(rot.z % (2 * Math.PI)) > 0.1;
-      if (isRotated) return false;
-    }
-    return true;
-  };
-  
-  const getFaceletString = () => {
-    const faceOrder = ['U', 'R', 'F', 'D', 'L', 'B'];
-    const faceNormals = {
-      U: new THREE.Vector3(0, 1, 0), R: new THREE.Vector3(1, 0, 0), F: new THREE.Vector3(0, 0, 1),
-      D: new THREE.Vector3(0, -1, 0), L: new THREE.Vector3(-1, 0, 0), B: new THREE.Vector3(0, 0, -1),
-    };
-    const faceletPositions = {
-      U: [[-1, 1, -1], [0, 1, -1], [1, 1, -1], [-1, 1, 0], [0, 1, 0], [1, 1, 0], [-1, 1, 1], [0, 1, 1], [1, 1, 1]],
-      R: [[1, 1, -1], [1, 1, 0], [1, 1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, -1, -1], [1, -1, 0], [1, -1, 1]],
-      F: [[-1, 1, 1], [0, 1, 1], [1, 1, 1], [-1, 0, 1], [0, 0, 1], [1, 0, 1], [-1, -1, 1], [0, -1, 1], [1, -1, 1]],
-      D: [[-1, -1, 1], [0, -1, 1], [1, -1, 1], [-1, -1, 0], [0, -1, 0], [1, -1, 0], [-1, -1, -1], [0, -1, -1], [1, -1, -1]],
-      L: [[-1, 1, 1], [-1, 1, 0], [-1, 1, -1], [-1, 0, 1], [-1, 0, 0], [-1, 0, -1], [-1, -1, 1], [-1, -1, 0], [-1, -1, -1]],
-      B: [[1, 1, -1], [0, 1, -1], [-1, 1, -1], [1, 0, -1], [0, 0, -1], [-1, 0, -1], [1, -1, -1], [0, -1, -1], [-1, -1, -1]],
-    };
-    let faceletString = '';
-    for (const face of faceOrder) {
-      const normal = faceNormals[face];
-      for (const pos of faceletPositions[face]) {
-        const positionVec = new THREE.Vector3(...pos);
-        const cubelet = cubelets.find(c => c.position.equals(positionVec));
-        if (!cubelet) return "Error: Cube state invalid.";
-        const cubeletRotation = new THREE.Quaternion().setFromEuler(cubelet.rotation);
-        let colorNormal = normal.clone().applyQuaternion(cubeletRotation.clone().invert());
-        let color = '?';
-        if (Math.abs(colorNormal.y - 1) < 0.1) color = 'U'; else if (Math.abs(colorNormal.x - 1) < 0.1) color = 'R';
-        else if (Math.abs(colorNormal.z - 1) < 0.1) color = 'F'; else if (Math.abs(colorNormal.y - -1) < 0.1) color = 'D';
-        else if (Math.abs(colorNormal.x - -1) < 0.1) color = 'L'; else if (Math.abs(colorNormal.z - -1) < 0.1) color = 'B';
-        faceletString += color;
-      }
-    }
-    return faceletString;
-  };
-
   useImperativeHandle(ref, () => ({
     rotateFace,
-    getFaceletString,
-  }), [cubelets]);
+  }));
 
   const rotateFace = (axis, layer, direction, isWide = false) => {
     if (isAnimating.current) return;
@@ -121,10 +75,6 @@ export const RubiksCube = forwardRef(({ onStateChange }, ref) => {
         groupRef.current.remove(pivot);
         setCubelets(updatedCubelets);
         isAnimating.current = false;
-        
-        if (onStateChange) {
-          onStateChange(checkSolved(updatedCubelets));
-        }
       },
     });
   };

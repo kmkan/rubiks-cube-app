@@ -1,4 +1,6 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+// client/src/App.js
+
+import React, { useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { RubiksCube } from './components/RubiksCube';
@@ -7,10 +9,8 @@ import './App.css';
 
 function App() {
   const cubeRef = useRef();
-  const [isScrambled, setIsScrambled] = useState(false);
-  const [solution, setSolution] = useState(null);
 
-  const keyMap = useCallback(() => ({
+  const keyMap = {
     'U': { axis: new THREE.Vector3(0, 1, 0), layer: 1 },
     'D': { axis: new THREE.Vector3(0, 1, 0), layer: -1 },
     'L': { axis: new THREE.Vector3(1, 0, 0), layer: -1 },
@@ -20,22 +20,21 @@ function App() {
     'M': { axis: new THREE.Vector3(1, 0, 0), layer: 0 },
     'S': { axis: new THREE.Vector3(0, 0, 1), layer: 0 },
     'E': { axis: new THREE.Vector3(0, 1, 0), layer: 0 },
-  }), []);
+  };
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.altKey) {
         event.preventDefault();
       }
-      const currentKeyMap = keyMap();
       const key = event.key.toUpperCase();
-      if (currentKeyMap[key] && cubeRef.current) {
+      if (keyMap[key] && cubeRef.current) {
         const isWide = event.altKey && ['U', 'D', 'L', 'R', 'F', 'B'].includes(key);
         let direction = event.shiftKey ? -1 : 1;
         if (['U', 'R', 'F', 'S'].includes(key)) {
           direction *= -1;
         }
-        const { axis, layer } = currentKeyMap[key];
+        const { axis, layer } = keyMap[key];
         cubeRef.current.rotateFace(axis, layer, direction, isWide);
       }
     };
@@ -43,11 +42,9 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [keyMap]);
+  }, []);
 
   const handleScramble = () => {
-    setIsScrambled(true);
-    setSolution(null);
     if (!cubeRef.current) return;
     const scrambleMoves = ['U', 'D', 'L', 'R', 'F', 'B'];
     let moveCount = 0;
@@ -61,35 +58,13 @@ function App() {
         randomMoveKey = scrambleMoves[Math.floor(Math.random() * scrambleMoves.length)];
       } while (randomMoveKey === lastMoveKey);
       lastMoveKey = randomMoveKey;
-      const { axis, layer } = keyMap()[randomMoveKey];
+      const { axis, layer } = keyMap[randomMoveKey];
       const direction = Math.random() < 0.5 ? 1 : -1;
       cubeRef.current.rotateFace(axis, layer, direction);
       moveCount++;
       setTimeout(performMove, 210);
     };
     performMove();
-  };
-
-  const handleGenerateSolution = async () => {
-    if (cubeRef.current) {
-      setSolution("Solving...");
-      const faceletString = cubeRef.current.getFaceletString();
-      try {
-        const response = await fetch('/api/solve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ faceletString }),
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setSolution(data.solution);
-        } else {
-          setSolution(`Error: ${data.error}`);
-        }
-      } catch (e) {
-        setSolution("Error: Could not connect to the server.");
-      }
-    }
   };
 
   return (
@@ -104,9 +79,6 @@ function App() {
         >
           Scramble
         </button>
-        <button onClick={handleGenerateSolution} style={{ marginLeft: '10px', padding: '8px', cursor: 'pointer' }}>
-          Show Solution
-        </button>
       </div>
       <Canvas camera={{ position: [8, 8, 8], fov: 25 }}>
         <ambientLight intensity={1.2} />
@@ -114,22 +86,6 @@ function App() {
         <OrbitControls />
         <RubiksCube ref={cubeRef} />
       </Canvas>
-      {solution && (
-        <div style={{
-          position: 'absolute',
-          bottom: 20,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(0, 0, 0, 0.7)',
-          color: 'white',
-          padding: '10px 20px',
-          borderRadius: '5px',
-          fontFamily: 'monospace',
-          fontSize: '1.2em',
-        }}>
-          Solution: {solution}
-        </div>
-      )}
     </>
   );
 }
